@@ -40,7 +40,7 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                    docker.withRegistry('https://hub.docker.com/u/sathish1918', 'docker-hub-credentials') {
                         docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
                         docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push('latest')  // Optional: also push as latest
                     }

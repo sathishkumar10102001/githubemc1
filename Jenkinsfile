@@ -4,20 +4,23 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'sathish1918/python'
         DOCKER_TAG = "1.0.${env.BUILD_NUMBER}"
-        STAGING_SERVER = 'http://52.66.36.217:8080/'
+        STAGING_SERVER = '52.66.36.217'  // Removed http:// and port from here
+        STAGING_PORT = '8080'
     }
     
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/sathishkumar10102001/githubemc1'
+                git branch: 'main', 
+                url: 'https://github.com/sathishkumar10102001/githubemc1.git',
+                credentialsId: 'github-credentials'  // Added credentials
             }
         }
         
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${env.DOCKER_IMAGE}:${env.DOCKER_TAG}")
+                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
                 }
             }
         }
@@ -25,10 +28,10 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Example for Node.js app - adjust for your tech stack
-                    docker.image('node:14').inside {
-                        sh 'npm install'
-                        sh 'npm test'
+                    // Changed to Python testing since your image is python-based
+                    docker.image('python:3.9').inside {
+                        sh 'pip install -r requirements.txt'
+                        sh 'python -m pytest'  // Assuming pytest is used
                     }
                 }
             }
@@ -37,8 +40,9 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('https://hub.docker.com/u/sathish1918', 'docker-hub-credentials') {
-                        docker.image("${env.DOCKER_IMAGE}:${env.DOCKER_TAG}").push()
+                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                        docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
+                        docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push('latest')  // Optional: also push as latest
                     }
                 }
             }
@@ -49,11 +53,11 @@ pipeline {
                 script {
                     sshagent(['staging-server-credentials']) {
                         sh """
-                            ssh user@${env.STAGING_SERVER} "
-                                docker pull ${env.DOCKER_IMAGE}:${env.DOCKER_TAG}
+                            ssh -p ${STAGING_PORT} ubuntu@${STAGING_SERVER} "
+                                docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}
                                 docker stop python || true
                                 docker rm python || true
-                                docker run -d --name python -p 3000:3000 ${env.DOCKER_IMAGE}:${env.DOCKER_TAG}
+                                docker run -d --name python -p 3000:3000 ${DOCKER_IMAGE}:${DOCKER_TAG}
                             "
                         """
                     }
@@ -63,11 +67,20 @@ pipeline {
     }
     
     post {
+        always {
+            cleanWs()  // Clean workspace after build
+        }
         success {
-            slackSend(color: 'good', message: "Build ${env.BUILD_NUMBER} succeeded!")
+            slackSend(
+                color: 'good', 
+                message: "SUCCESS: Build ${BUILD_NUMBER} deployed to staging\nImage: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            )
         }
         failure {
-            slackSend(color: 'danger', message: "Build ${env.BUILD_NUMBER} failed!")
+            slackSend(
+                color: 'danger',
+                message: "FAILED: Build ${BUILD_NUMBER}\nCheck console: ${BUILD_URL}"
+            )
         }
     }
 }

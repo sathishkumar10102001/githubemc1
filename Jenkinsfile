@@ -3,8 +3,8 @@ pipeline {
     
     environment {
         DOCKER_IMAGE = 'sathish1918/python'
-        DOCKER_TAG = "${1.0}"
-        STAGING_SERVER = 'http://13.235.70.200/8080'
+        DOCKER_TAG = "1.0.${env.BUILD_NUMBER}"
+        STAGING_SERVER = 'http://52.66.36.217:8080/'
     }
     
     stages {
@@ -51,9 +51,9 @@ pipeline {
                         sh """
                             ssh user@${env.STAGING_SERVER} "
                                 docker pull ${env.DOCKER_IMAGE}:${env.DOCKER_TAG}
-                                docker stop your-app || true
-                                docker rm your-app || true
-                                docker run -d --name your-app -p 3000:3000 ${env.DOCKER_IMAGE}:${env.DOCKER_TAG}
+                                docker stop python || true
+                                docker rm python || true
+                                docker run -d --name python -p 3000:3000 ${env.DOCKER_IMAGE}:${env.DOCKER_TAG}
                             "
                         """
                     }
